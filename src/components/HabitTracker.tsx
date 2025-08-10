@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Input, List, Modal, message, Select, Space, Tag, InputNumber, Flex } from "antd";
+import { Button, Input, List, Modal, message, Select, Space, Tag, InputNumber, Flex, Typography, Divider } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { addHabit, removeHabit, setHabits, updateHabitCompletions } from "../store/habitsSlice";
@@ -38,7 +38,7 @@ function HabitTracker() {
       .catch(() => message.error("Ошибка загрузки привычек"));
   }, [userId, dispatch]);
   
-//сделать отдельный ендпоинт, который одним запросом сразу парсил все данные по idUser, надо привести чтобы не стояли в очереди на запросы.
+// TODO: сделать отдельный ендпоинт, который одним запросом сразу парсил все данные по idUser, надо привести чтобы не стояли в очереди на запросы.
   const loadCompletionsForHabits = async (habitsData: typeof habits) => {
     setLoadingCompletions(true);
     try {
@@ -121,7 +121,6 @@ function HabitTracker() {
     return completions[habitId]?.includes(todayISO);
   };
 
-  // Подсчёт текущей серии подряд, включая сегодня
   const getCurrentStreak = (habitId: string): number => {
     const dates = completions[habitId];
     if (!dates || dates.length === 0) return 0;
@@ -172,43 +171,56 @@ function HabitTracker() {
           Добавить
         </Button>
       </Space>
-      
-      <List
-        bordered
-        loading={loadingCompletions}
-        dataSource={habits}
-        renderItem={(habit) => {
-          const streak = getCurrentStreak(habit.id);
-          const doneToday = isDoneToday(habit.id);
+           
+      <Flex vertical gap="middle" className="w-full">
+      {habits.map((habit) => {
+        const streak = getCurrentStreak(habit.id);
+        const doneToday = isDoneToday(habit.id);
 
-          return (
+        return (
+          <Flex key={habit.id} vertical className="w-full">
+            <Flex
+              wrap="wrap"
+              align="center"
+              justify="space-between"
+              gap="small"
+              className="w-full"
+            >
+              <Flex wrap="wrap" align="center" gap="small">
+                {habit.icon && <span>{habit.icon}</span>}
+                <Typography.Text strong>{habit.name}</Typography.Text>
+                <Tag color={streak >= habit.goalDays ? "green" : "blue"}>
+                  Прогресс: {streak} / {habit.goalDays} дней
+                </Tag>
+                {doneToday && <Tag color="success">Сегодня сделано</Tag>}
+              </Flex>
 
-            <List.Item
-              key={habit.id}
-              actions={[
-                <Button danger onClick={() => confirmDelete(habit.id)} key="delete">
-                  Удалить
-                </Button>,
+              <Flex wrap="wrap" gap="small" style={{ flex: "1 1 auto", justifyContent: "flex-end" }}>
                 <Button
+                  danger
+                  block
+                  onClick={() => confirmDelete(habit.id)}
+                  style={{ maxWidth: 200 }}
+                >
+                  Удалить
+                </Button>
+                <Button
+                  block
                   type={doneToday ? "default" : "primary"}
                   onClick={() => toggleCompletionToday(habit.id)}
-                  key="complete"
+                  style={{ maxWidth: 200 }}
                 >
                   {doneToday ? "Снять отметку" : "Сделано сегодня"}
-                </Button>,
-              ]}
-            >
-              {habit.icon && <span style={{ marginRight: 8 }}>{habit.icon}</span>}
-              <b>{habit.name}</b>{" "}
-              <Tag color={streak >= habit.goalDays ? "green" : "blue"}>
-                Прогресс: {streak} / {habit.goalDays} дней
-              </Tag>
-              {doneToday && <Tag color="success" style={{ marginLeft: 8 }}>Сегодня сделано</Tag>}
-            </List.Item>
-          );
-        }}
-      />
+                </Button>
+              </Flex>
+            </Flex>
 
+            <Divider style={{ margin: "8px 0" }} />
+          </Flex>
+        );
+      })}
+    </Flex>
+    
       <Modal
         title="Подтверждение удаления"
         open={Boolean(isDeleting)}
@@ -217,7 +229,7 @@ function HabitTracker() {
         okText="Удалить"
         cancelText="Отмена"
       >
-        <p>Вы уверены, что хотите удалить эту привычку?</p>
+        <p>Вы уверены, что хотите перестать прививать эту привычку?</p>
       </Modal>
     </div>
   );

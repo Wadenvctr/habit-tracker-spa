@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState(""); // новое поле
+  const [name, setName] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -28,7 +28,7 @@ function RegisterPage() {
     try {
       const res = await api.register({ name: name.trim(), email: email.trim(), password: password.trim() });
       dispatch(loginSuccess(res));
-      navigate("/habits"); // после регистрации сразу на /habits
+      navigate("/habits");
     } catch {
       message.error("Ошибка регистрации");
     }

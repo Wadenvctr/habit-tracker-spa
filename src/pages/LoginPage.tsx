@@ -14,10 +14,9 @@ function LoginPage() {
   const handleLogin = async () => {
     try {
       const res = await api.login(username, password);
-      // dispatch с правильной структурой payload: { token, user }
       dispatch(loginSuccess({ token: res.token, user: res.user }));
       message.success("Вход выполнен");
-      navigate("/habits"); // редирект после логина
+      navigate("/habits");
     } catch {
       message.error("Неверные данные");
     }

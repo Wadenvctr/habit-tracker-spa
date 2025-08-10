@@ -10,7 +10,6 @@ function HabitCalendar() {
 
   const cellRender = (date: Dayjs, info: CellRenderInfo<Dayjs>) => {
   if (info.type !== "date") {
-    // Для не-дневных ячеек (например, месяцев или годов) рендерим стандартный узел (без изменений)
     return info.originNode;
   }
 

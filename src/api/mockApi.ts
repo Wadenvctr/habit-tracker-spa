@@ -28,10 +28,8 @@ export const api = {
         const db = loadDB();
         let email: string;
         if (typeof emailOrData === 'string') {
-            // Вызов старого формата: (email, password, name)
             email = emailOrData;
         } else {
-            // Вызов нового формата: ({ email, password, name })
             email = emailOrData.email;
             password = emailOrData.password;
             name = emailOrData.name;

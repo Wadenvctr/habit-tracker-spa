@@ -9,9 +9,6 @@ import PrivateRoute from './components/PrivateRoute';
 import { useDispatch } from 'react-redux';
 import { loadAuthFromStorage } from './store/authSlice';
 
-// Чтобы использовать хуки (useDispatch) внутри компонента маршрутизатора,
-// создадим обёртку, которая будет использовать загрузку auth, а потом отдаст RouterProvider
-
 export default function App() {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
