@@ -1,50 +1,102 @@
-import { useState } from "react";
-import { Input, Button, message } from "antd";
-import { api } from "../api/mockApi";
+import React, { useCallback } from "react";
+import { Input, Button, message, Form } from "antd";
+import { Formik, type FormikProps } from "formik";
+import * as Yup from "yup";
+import { api } from "../api/api";
 import { useDispatch } from "react-redux";
 import { loginSuccess } from "../store/authSlice";
 import { useNavigate } from "react-router-dom";
 
+interface LoginFormValues {
+  email: string;
+  password: string;
+}
+
+const validationSchema = Yup.object({
+  email: Yup.string()
+    .email("Некорректный email адрес")
+    .required("Email обязателен"),
+  password: Yup.string()
+    .required("Пароль обязателен"),
+});
+
 function LoginPage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const handleLogin = async () => {
+  const initialValues: LoginFormValues = {
+    email: "",
+    password: "",
+  };
+
+  const handleSubmit = useCallback(async (values: LoginFormValues) => {
     try {
-      const res = await api.login(username, password);
+      const res = await api.login(values.email, values.password);
       dispatch(loginSuccess({ token: res.token, user: res.user }));
       message.success("Вход выполнен");
       navigate("/habits");
-    } catch {
-      message.error("Неверные данные");
+    } catch (error: any) {
+      console.error('Ошибка входа:', error);
+      const errorMessage = error?.response?.data?.message || "Неверные данные для входа";
+      message.error(errorMessage);
     }
-  };
+  }, [dispatch, navigate]);
 
   return (
-    <div style={{ maxWidth: 320, margin: "auto", paddingTop: 40 }}>
-      <h2>Вход</h2>
-      <Input
-        placeholder="Логин"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-      />
-      <Input.Password
-        placeholder="Пароль"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={{ marginTop: 10 }}
-      />
-      <Button
-        type="primary"
-        onClick={handleLogin}
-        style={{ marginTop: 10 }}
-        block
+    <React.Fragment>
+      <div style={{ maxWidth: 400, margin: "auto", paddingTop: 40 }}>
+        <h2>Вход в систему</h2>
+      <Formik
+        initialValues={initialValues}
+        validationSchema={validationSchema}
+        onSubmit={handleSubmit}
       >
-        Войти
-      </Button>
-    </div>
+        {({ values, errors, touched, handleChange, handleBlur, handleSubmit: formikHandleSubmit, isSubmitting }: FormikProps<LoginFormValues>) => (
+          <Form onFinish={formikHandleSubmit} layout="vertical">
+            <Form.Item
+              label="Email"
+              validateStatus={errors.email && touched.email ? "error" : ""}
+              help={errors.email && touched.email ? errors.email : ""}
+            >
+              <Input
+                name="email"
+                type="email"
+                placeholder="Введите ваш email"
+                value={values.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Пароль"
+              validateStatus={errors.password && touched.password ? "error" : ""}
+              help={errors.password && touched.password ? errors.password : ""}
+            >
+              <Input.Password
+                name="password"
+                placeholder="Введите пароль"
+                value={values.password}
+                onChange={handleChange}
+                onBlur={handleBlur}
+              />
+            </Form.Item>
+
+            <Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={isSubmitting}
+                block
+              >
+                Войти
+              </Button>
+            </Form.Item>
+          </Form>
+        )}
+        </Formik>
+      </div>
+    </React.Fragment>
   );
 }
 

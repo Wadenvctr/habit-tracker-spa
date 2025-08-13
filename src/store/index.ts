@@ -5,7 +5,7 @@ import habitsReducer from "./habitsSlice";
 const store = configureStore({
     reducer: {
         auth: authReducer,
-        habits: habitsReducer
+        habits: habitsReducer,
     }
 });
 

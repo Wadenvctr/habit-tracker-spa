@@ -1,64 +1,126 @@
-import { useState } from "react";
-import { Input, Button, message } from "antd";
-import { api } from "../api/mockApi";
+import React, { useCallback } from "react";
+import { Input, Button, message, Form } from "antd";
+import { Formik, type FormikProps } from "formik";
+import * as Yup from "yup";
+import { api } from "../api/api";
 import { useDispatch } from "react-redux";
 import { loginSuccess } from "../store/authSlice";
 import { useNavigate } from "react-router-dom";
 
+interface RegisterFormValues {
+  name: string;
+  email: string;
+  password: string;
+}
+
+const validationSchema = Yup.object({
+  name: Yup.string()
+    .min(2, "Имя должно содержать минимум 2 символа")
+    .max(50, "Имя должно содержать максимум 50 символов")
+    .optional(),
+  email: Yup.string()
+    .email("Некорректный email адрес")
+    .required("Email обязателен"),
+  password: Yup.string()
+    .required("Пароль обязателен"),
+});
+
 function RegisterPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const handleRegister = async () => {
-    if (!name.trim()) {
-      message.warning("Введите имя");
-      return;
-    }
-    if (!email.trim()) {
-      message.warning("Введите email");
-      return;
-    }
-    if (!password.trim()) {
-      message.warning("Введите пароль");
-      return;
-    }
-    try {
-      const res = await api.register({ name: name.trim(), email: email.trim(), password: password.trim() });
-      dispatch(loginSuccess(res));
-      navigate("/habits");
-    } catch {
-      message.error("Ошибка регистрации");
-    }
+  const initialValues: RegisterFormValues = {
+    name: "",
+    email: "",
+    password: "",
   };
 
+  const handleSubmit = useCallback(async (values: RegisterFormValues) => {
+    try {
+      const res = await api.register({
+        name: values.name.trim(),
+        email: values.email.trim(),
+        password: values.password.trim(),
+      });
+      dispatch(loginSuccess(res));
+      navigate("/habits");
+      message.success("Регистрация успешна!");
+    } catch (error: any) {
+      console.error('Ошибка регистрации:', error);
+      const errorMessage = error?.response?.data?.message || "Ошибка регистрации";
+      message.error(errorMessage);
+    }
+  }, [dispatch, navigate]);
+
   return (
-    <div>
-      <h2>Регистрация</h2>
-      <Input
-        placeholder="Имя"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={{ marginBottom: 10 }}
-      />
-      <Input
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        style={{ marginBottom: 10 }}
-      />
-      <Input.Password
-        placeholder="Пароль"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={{ marginBottom: 10 }}
-      />
-      <Button type="primary" onClick={handleRegister}>
-        Зарегистрироваться
-      </Button>
-    </div>
+    <React.Fragment>
+      <div>
+        <h2>Регистрация</h2>
+      <Formik
+        initialValues={initialValues}
+        validationSchema={validationSchema}
+        onSubmit={handleSubmit}
+      >
+        {({ values, errors, touched, handleChange, handleBlur, handleSubmit: formikHandleSubmit, isSubmitting }: FormikProps<RegisterFormValues>) => (
+          <Form onFinish={formikHandleSubmit} layout="vertical">
+            <Form.Item
+              label="Имя (необязательно)"
+              validateStatus={errors.name && touched.name ? "error" : ""}
+              help={errors.name && touched.name ? errors.name : ""}
+            >
+              <Input
+                name="name"
+                placeholder="Введите ваше имя (необязательно)"
+                value={values.name}
+                onChange={handleChange}
+                onBlur={handleBlur}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Email"
+              validateStatus={errors.email && touched.email ? "error" : ""}
+              help={errors.email && touched.email ? errors.email : ""}
+            >
+              <Input
+                name="email"
+                type="email"
+                placeholder="Введите ваш email"
+                value={values.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Пароль"
+              validateStatus={errors.password && touched.password ? "error" : ""}
+              help={errors.password && touched.password ? errors.password : ""}
+            >
+              <Input.Password
+                name="password"
+                placeholder="Введите пароль"
+                value={values.password}
+                onChange={handleChange}
+                onBlur={handleBlur}
+              />
+            </Form.Item>
+
+            <Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={isSubmitting}
+                block
+              >
+                Зарегистрироваться
+              </Button>
+            </Form.Item>
+          </Form>
+        )}
+        </Formik>
+      </div>
+    </React.Fragment>
   );
 }
 

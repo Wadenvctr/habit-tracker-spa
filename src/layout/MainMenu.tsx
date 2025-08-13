@@ -6,12 +6,12 @@ function MainMenu() {
 
   return (
     <Menu
-      theme="dark"
       mode="inline"
       selectedKeys={[location.pathname]}
+      style={{ height: '100%', borderRight: 0 }}
       items={[
         { key: "/", label: <Link to="/">Главная</Link> },
-        { key: "/habits", label: <Link to="/habits">Привычки</Link> }
+        { key: "/habits", label: <Link to="/habits">Привычки</Link> },
       ]}
     />
   );

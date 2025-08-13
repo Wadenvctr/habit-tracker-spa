@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { Button, Input, List, Modal, message, Select, Space, Tag, InputNumber, Flex, Typography, Divider } from "antd";
+import React, { useState, useCallback } from "react";
+import { Button, Card, Modal, message, Select, Input, Tag, InputNumber, Flex, Typography, Divider, Form } from "antd";
+import { Formik, type FormikProps } from "formik";
+import * as Yup from "yup";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../store";
-import { addHabit, removeHabit, setHabits, updateHabitCompletions } from "../store/habitsSlice";
-import { api } from "../api/mockApi";
+import { addHabit, removeHabit } from "../store/habitsSlice";
+import { api } from "../api/api";
 import dayjs from "dayjs";
 
 const emojiOptions = [
@@ -16,92 +18,94 @@ const emojiOptions = [
   { label: "✍🏼", value: "✍🏼" },
 ];
 
-function HabitTracker() {
+interface HabitFormValues {
+  name: string;
+  goalDays: number;
+  icon?: string;
+}
+
+const habitValidationSchema = Yup.object({
+  name: Yup.string()
+    .min(3, "Название должно содержать минимум 3 символа")
+    .max(30, "Название должно содержать максимум 30 символов")
+    .required("Название привычки обязательно"),
+  goalDays: Yup.number()
+    .min(1, "Цель должна быть минимум 1 день")
+    .max(365, "Цель не может превышать 365 дней")
+    .required("Цель в днях обязательна"),
+  icon: Yup.string().optional(),
+});
+
+interface HabitTrackerProps {
+  completionsData: Record<string, string[]>;
+  setCompletionsData: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
+  onDataRefresh: () => Promise<void>;
+  loading: boolean;
+}
+
+interface HabitTrackerState {
+  isDeleting: string | null;
+}
+
+function HabitTracker({ completionsData, setCompletionsData, onDataRefresh, loading }: HabitTrackerProps) {
   const dispatch = useDispatch();
   const habits = useSelector((state: RootState) => state.habits.list);
-  const completions = useSelector((state: RootState) => state.habits.completions);
   const userId = useSelector((state: RootState) => state.auth.user?.id);
 
-  const [name, setName] = useState("");
-  const [icon, setIcon] = useState<string | undefined>(undefined);
-  const [goalDays, setGoalDays] = useState<number>(21);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [loadingCompletions, setLoadingCompletions] = useState(false);
+  const [state, setState] = useState<HabitTrackerState>({
+    isDeleting: null,
+  });
 
-  useEffect(() => {
-    if (!userId) return;
-    api.getHabits(userId)
-      .then((data) => {
-        dispatch(setHabits(data));
-        loadCompletionsForHabits(data);
-      })
-      .catch(() => message.error("Ошибка загрузки привычек"));
-  }, [userId, dispatch]);
-  
-// TODO: сделать отдельный ендпоинт, который одним запросом сразу парсил все данные по idUser, надо привести чтобы не стояли в очереди на запросы.
-  const loadCompletionsForHabits = async (habitsData: typeof habits) => {
-    setLoadingCompletions(true);
+  const refreshCompletions = useCallback(async (habitId: string) => {
     try {
-      const allCompletions: Record<string, string[]> = {};
-      for (const habit of habitsData) {
-        const dates = await api.getCompletionsForHabit(habit.id);
-        allCompletions[habit.id] = dates;
-      }
-      dispatch(updateHabitCompletions(allCompletions));
-    } catch {
-      message.error("Ошибка загрузки отметок выполнения");
-    } finally {
-      setLoadingCompletions(false);
+      const completions = await api.getCompletionsForHabit(habitId);
+      setCompletionsData((prev: Record<string, string[]>) => ({ ...prev, [habitId]: completions }));
+    } catch (error) {
+      console.error(`Ошибка обновления выполнений для привычки ${habitId}:`, error);
     }
-  };
+  }, [setCompletionsData]);
 
-  const handleAdd = async () => {
-    if (!name.trim()) {
-      message.warning("Введите название привычки");
-      return;
-    }
-    if (goalDays < 1) {
-      message.warning("Цель должна быть минимум 1 день");
-      return;
-    }
+  const handleAddHabit = useCallback(async (values: HabitFormValues, { resetForm }: { resetForm: () => void }) => {
     if (!userId) {
       message.error("Пользователь не авторизован");
       return;
     }
     try {
       const newHabit = await api.createHabit(userId, {
-        name: name.trim(),
-        goalDays,
-        icon,
+        name: values.name.trim(),
+        goalDays: values.goalDays,
+        icon: values.icon,
       });
       dispatch(addHabit(newHabit));
-      setName("");
-      setIcon(undefined);
-      setGoalDays(21);
+      resetForm();
       message.success("Привычка добавлена");
-    } catch {
+    } catch (error) {
+      console.error('Ошибка добавления привычки:', error);
       message.error("Ошибка добавления привычки");
     }
-  };
+  }, [userId, dispatch]);
 
-  const confirmDelete = (id: string) => {
-    setIsDeleting(id);
-  };
 
-  const handleDelete = async () => {
-    if (!isDeleting) return;
+
+  const handleConfirmDelete = useCallback((id: string) => {
+    setState(prev => ({ ...prev, isDeleting: id }));
+  }, []);
+
+  const handleDelete = useCallback(async () => {
+    if (!state.isDeleting) return;
     try {
-      await api.deleteHabit(isDeleting);
-      dispatch(removeHabit(isDeleting));
+      await api.deleteHabit(state.isDeleting);
+      dispatch(removeHabit(state.isDeleting));
       message.success("Привычка удалена");
-    } catch {
+    } catch (error) {
+      console.error('Ошибка удаления привычки:', error);
       message.error("Ошибка удаления");
     } finally {
-      setIsDeleting(null);
+      setState(prev => ({ ...prev, isDeleting: null }));
     }
-  };
+  }, [state.isDeleting, dispatch]);
 
-  const toggleCompletionToday = async (habitId: string) => {
+  const handleToggleCompletionToday = useCallback(async (habitId: string) => {
     if (!userId) {
       message.error("Пользователь не авторизован");
       return;
@@ -109,71 +113,124 @@ function HabitTracker() {
     const todayISO = dayjs().format("YYYY-MM-DD");
     try {
       await api.toggleCompletion(habitId, todayISO);
-      await loadCompletionsForHabits(habits);
+      await onDataRefresh();
+      await refreshCompletions(habitId);
       message.success("Отметка обновлена");
-    } catch {
+    } catch (error) {
+      console.error('Ошибка отметки выполнения:', error);
       message.error("Ошибка отметки выполнения");
     }
-  };
+  }, [userId, onDataRefresh, refreshCompletions]);
 
-  const isDoneToday = (habitId: string) => {
+  const isDoneToday = useCallback((habitId: string) => {
     const todayISO = dayjs().format("YYYY-MM-DD");
-    return completions[habitId]?.includes(todayISO);
-  };
+    return completionsData[habitId]?.includes(todayISO) || false;
+  }, [completionsData]);
 
-  const getCurrentStreak = (habitId: string): number => {
-    const dates = completions[habitId];
-    if (!dates || dates.length === 0) return 0;
+  const getCurrentStreak = useCallback((habitId: string): number => {
+    const completions = completionsData[habitId] || [];
+    if (completions.length === 0) return 0;
 
-    const sortedDates = dates
-      .map((d) => dayjs(d))
-      .sort((a, b) => a.diff(b));
+    const sortedDates = completions
+      .map((date) => dayjs(date))
+      .sort((a, b) => b.valueOf() - a.valueOf());
 
     let streak = 0;
-    let currentDate = dayjs().startOf('day');
+    let currentDate = dayjs();
 
-    for (let i = sortedDates.length - 1; i >= 0; i--) {
-      if (sortedDates[i].isSame(currentDate, 'day')) {
+    for (const completionDate of sortedDates) {
+      if (completionDate.isSame(currentDate, "day")) {
         streak++;
-        currentDate = currentDate.subtract(1, 'day');
-      } else if (sortedDates[i].isBefore(currentDate, 'day')) {
+        currentDate = currentDate.subtract(1, "day");
+      } else if (completionDate.isSame(currentDate.subtract(1, "day"), "day")) {
+        streak++;
+        currentDate = currentDate.subtract(1, "day");
+      } else {
         break;
       }
     }
+
     return streak;
+  }, [completionsData]);
+
+  const initialValues: HabitFormValues = {
+    name: "",
+    goalDays: 21,
+    icon: undefined,
   };
 
   return (
-    <div>
-      <Space style={{ marginBottom: 20 }}>
-        <Input
-          placeholder="Новая привычка"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{ width: 200 }}
-        />
-        <InputNumber
-          min={1}
-          value={goalDays}
-          onChange={(value) => setGoalDays(value ?? 21)}
-          style={{ width: 120 }}
-          placeholder="Цель дней"
-        />
-        <Select
-          placeholder="Выберите иконку"
-          options={emojiOptions}
-          value={icon}
-          onChange={setIcon}
-          style={{ width: 120 }}
-          allowClear
-        />
-        <Button type="primary" onClick={handleAdd}>
-          Добавить
-        </Button>
-      </Space>
+    <React.Fragment>
+      <Card title="Добавить новую привычку" style={{ marginBottom: 20 }}>
+        <Formik
+          initialValues={initialValues}
+          validationSchema={habitValidationSchema}
+          onSubmit={handleAddHabit}
+        >
+          {({ values, errors, touched, handleChange, handleBlur, handleSubmit, setFieldValue, isSubmitting }: FormikProps<HabitFormValues>) => (
+            <Form onFinish={handleSubmit} layout="vertical">
+              <Form.Item
+                label="Название привычки"
+                validateStatus={errors.name && touched.name ? "error" : ""}
+                help={errors.name && touched.name ? errors.name : ""}
+              >
+                <Input
+                  name="name"
+                  placeholder="Введите название привычки (3-30 символов)"
+                  value={values.name}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                />
+              </Form.Item>
+
+              <Form.Item
+                label="Цель в днях"
+                validateStatus={errors.goalDays && touched.goalDays ? "error" : ""}
+                help={errors.goalDays && touched.goalDays ? errors.goalDays : ""}
+              >
+                <InputNumber
+                  name="goalDays"
+                  min={1}
+                  max={365}
+                  value={values.goalDays}
+                  onChange={(value: number | null) => setFieldValue("goalDays", value ?? 21)}
+                  onBlur={handleBlur}
+                  style={{ width: "100%" }}
+                  placeholder="Количество дней для достижения цели"
+                />
+              </Form.Item>
+
+              <Form.Item
+                label="Иконка (необязательно)"
+                help="Выберите эмодзи для визуального представления привычки"
+              >
+                <Select
+                  placeholder="Выберите иконку"
+                  options={emojiOptions}
+                  value={values.icon}
+                  onChange={(value: string) => setFieldValue("icon", value)}
+                  allowClear
+                  style={{ width: "100%" }}
+                />
+              </Form.Item>
+
+              <Form.Item>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={isSubmitting || loading}
+                  block
+                >
+                  Добавить привычку
+                </Button>
+              </Form.Item>
+            </Form>
+          )}
+        </Formik>
+      </Card>
            
       <Flex vertical gap="middle" className="w-full">
-      {habits.map((habit) => {
+        {habits.map((habit: any) => {
         const streak = getCurrentStreak(habit.id);
         const doneToday = isDoneToday(habit.id);
 
@@ -199,7 +256,7 @@ function HabitTracker() {
                 <Button
                   danger
                   block
-                  onClick={() => confirmDelete(habit.id)}
+                  onClick={() => handleConfirmDelete(habit.id)}
                   style={{ maxWidth: 200 }}
                 >
                   Удалить
@@ -207,7 +264,7 @@ function HabitTracker() {
                 <Button
                   block
                   type={doneToday ? "default" : "primary"}
-                  onClick={() => toggleCompletionToday(habit.id)}
+                  onClick={() => handleToggleCompletionToday(habit.id)}
                   style={{ maxWidth: 200 }}
                 >
                   {doneToday ? "Снять отметку" : "Сделано сегодня"}
@@ -223,15 +280,15 @@ function HabitTracker() {
     
       <Modal
         title="Подтверждение удаления"
-        open={Boolean(isDeleting)}
+        open={Boolean(state.isDeleting)}
         onOk={handleDelete}
-        onCancel={() => setIsDeleting(null)}
+        onCancel={() => setState(prev => ({ ...prev, isDeleting: null }))}
         okText="Удалить"
         cancelText="Отмена"
       >
         <p>Вы уверены, что хотите перестать прививать эту привычку?</p>
       </Modal>
-    </div>
+    </React.Fragment>
   );
 }
 

@@ -1,12 +1,14 @@
 import { Calendar, Tooltip, Empty } from "antd";
 import type { Dayjs } from "dayjs";
 import type { CellRenderInfo } from "rc-picker/lib/interface";
-import { useSelector } from "react-redux";
-import type { RootState } from "../store";
+import type { Habit } from "../api/api";
 
-function HabitCalendar() {
-  const habits = useSelector((state: RootState) => state.habits.list);
-  const completions = useSelector((state: RootState) => state.habits.completions);
+interface HabitCalendarProps {
+  habits: Habit[];
+  completions: Record<string, string[]>;
+}
+
+function HabitCalendar({ habits, completions }: HabitCalendarProps) {
 
   const cellRender = (date: Dayjs, info: CellRenderInfo<Dayjs>) => {
   if (info.type !== "date") {

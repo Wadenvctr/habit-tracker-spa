@@ -7,10 +7,11 @@ import RegisterPage from './pages/RegisterPage';
 import HabitsPage from './pages/HabitsPage';
 import PrivateRoute from './components/PrivateRoute';
 import { useDispatch } from 'react-redux';
+import type { AppDispatch } from './store';
 import { loadAuthFromStorage } from './store/authSlice';
 
 export default function App() {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

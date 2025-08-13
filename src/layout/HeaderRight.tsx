@@ -1,20 +1,20 @@
-import { Button } from "antd";
+import { Button, Space } from "antd";
 import { useDispatch } from "react-redux";
 import { logout } from "../store/authSlice";
 import { useAuth } from "../hooks/useAuth";
 import { Link } from "react-router-dom";
 
 function HeaderRight() {
-  const { isAuth, username } = useAuth();
+  const { isAuth, user } = useAuth();
   const dispatch = useDispatch();
 
   return (
     <div>
       {isAuth ? (
-        <>
-          <span style={{ marginRight: "10px" }}>{username}</span>
+        <Space size="middle">
+          <span>{user?.name || user?.email}</span>
           <Button onClick={() => dispatch(logout())}>Выйти</Button>
-        </>
+        </Space>
       ) : (
         <>
           <Link to="/login">

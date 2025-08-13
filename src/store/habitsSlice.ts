@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type { Habit } from '../api/mockApi';
+import type { Habit } from '../api/api';
 
 interface HabitsState {
     list: Habit[];
@@ -21,6 +21,12 @@ const habitsSlice = createSlice({
         },
         addHabit: (state, action: PayloadAction<Habit>) => {
             state.list.push(action.payload);
+        },
+        updateHabit: (state, action: PayloadAction<Habit>) => {
+            const index = state.list.findIndex((h) => h.id === action.payload.id);
+            if (index !== -1) {
+                state.list[index] = action.payload;
+            }
         },
         removeHabit: (state, action: PayloadAction<string>) => {
             state.list = state.list.filter((h) => h.id !== action.payload);
@@ -44,5 +50,5 @@ const habitsSlice = createSlice({
     }
 });
 
-export const { setHabits, addHabit, removeHabit, updateHabitCompletions, toggleHabitCompletion } = habitsSlice.actions;
+export const { setHabits, addHabit, updateHabit, removeHabit, updateHabitCompletions, toggleHabitCompletion } = habitsSlice.actions;
 export default habitsSlice.reducer;
